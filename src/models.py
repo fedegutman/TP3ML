@@ -59,7 +59,7 @@ class NeuralNetwork:
 
         return z, a 
 
-    def compute_loss(self, Y_hat, Y_true):
+    def loss(self, Y_hat, Y_true): # ponerle l2 reg
         batch_size = Y_true.shape[0]
         # log_probs = -np.log(Y_hat[np.arange(batch_size), Y_true]) # chequear
         log_probs = -np.sum(Y_true * np.log(Y_hat), axis=1)  # esto si ya encode
@@ -90,8 +90,15 @@ class NeuralNetwork:
             self.biases[l] -= lr * grads_b[l]
 
     def adam(self, grads_W, grads_b, lr, beta1=0.9, beta2=0.999, epsilon=1e-8):
-        
+        # implementar
         return
+    
+    def dropout(self, activations, dropout_rate=0.15):
+        if dropout_rate < 0 or dropout_rate >= 1:
+            raise ValueError("Invalid dropout_rate. Must be in the range [0, 1).")
+            # implementar
+        return
+    
 
 
     def lr_scheduling(self, lr_init, current_epoch, total_epochs, type='None', decay_rate=0.96, decay_steps=500):
@@ -126,7 +133,7 @@ class NeuralNetwork:
                 y_batch = y_shuffled[start:end]
 
                 activations, pre_acts = self.forward(X_batch)
-                loss = self.compute_loss(activations[-1], y_batch)
+                loss = self.loss(activations[-1], y_batch)
                 grads_W, grads_b = self.backward(activations, pre_acts, y_batch)
                 if optimizer == 'gradient_descent':
                     self.gradient_descent(grads_W, grads_b, current_lr)
