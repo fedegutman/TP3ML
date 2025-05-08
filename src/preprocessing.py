@@ -10,5 +10,5 @@ def one_hot_encoding(y:np.ndarray):
     
     return label_matrix
 
-def normalize(df):
-    return df/255
+def normalize(array):
+    return array/255

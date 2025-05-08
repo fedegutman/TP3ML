@@ -30,3 +30,5 @@ def train_valid_split(X_dataset:np.ndarray, Y_dataset:np.ndarray, seed:int=42, d
 
     return X_train, X_valid, Y_train, Y_valid
 
+def cross_validation():
+    return

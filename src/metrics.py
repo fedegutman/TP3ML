@@ -1,11 +1,3 @@
-import numpy as np
-
-def accuracy(yhat, ground_truth):
-    y_test_indices = np.argmax(ground_truth, axis=1)  # Convert one-hot encoded labels to class indices
-    test_acc = np.mean(yhat == y_test_indices)  # Compare predicted and true class indices
-    print("Accuracy:", test_acc)
-
-# PARA
 '''
 import pandas as pd
 
