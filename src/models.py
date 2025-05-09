@@ -1,6 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 class NeuralNetwork:
     def __init__(self, X:np.ndarray, y:np.ndarray, layer_sizes:list):
@@ -27,6 +26,8 @@ class NeuralNetwork:
             self.weights.append(W)
             self.biases.append(b)
 
+        # inicializo momentos para adam
+
     def relu(self, x):
         return np.maximum(0, x)
 
@@ -37,7 +38,7 @@ class NeuralNetwork:
         exps = np.exp(x - np.max(x, axis=1, keepdims=True)) # keepdims=True para que (n,) -> (n,1)
         return exps / np.sum(exps, axis=1, keepdims=True)
 
-    def forward(self, X):
+    def forward(self, X, training=True):
         z = [X]
         a = []
 
@@ -49,6 +50,9 @@ class NeuralNetwork:
             a.append(a_l)
 
             z_l = self.relu(a_l)
+            z.append(z_l)
+
+            z_l = self.dropout(z_l, dropout_rate=0.15, training=training)
             z.append(z_l)
 
         # capa de salida softmax
@@ -66,14 +70,17 @@ class NeuralNetwork:
 
         return z, a 
 
-    def loss(self, yhat, ytrue): # falta ponerle l2 reg
+    def loss(self, yhat, ytrue, l2_lambda): # falta ponerle l2 reg
         batch_size = ytrue.shape[0]
         log_probs = -np.sum(ytrue * np.log(yhat), axis=1) # hace la multiplicacion casillero x casillero
         loss = np.sum(log_probs) / batch_size
 
+        l2_reg = l2_lambda * np.sum([np.sum(W**2) for W in self.weights]) / (2 * batch_size)
+        loss += l2_reg
+
         return loss
 
-    def backward(self, activations, pre_activations, ytrue):
+    def backward(self, activations, pre_activations, ytrue, l2_lambda):
         batch_size = ytrue.shape[0]
         w_grads = [0] * self.nlayers
         b_grads = [0] * self.nlayers
@@ -82,7 +89,7 @@ class NeuralNetwork:
 
         for l in reversed(range(self.nlayers)):
             A_prev = activations[l]
-            w_grads[l] = A_prev.T @ dZ / batch_size
+            w_grads[l] = A_prev.T @ dZ / batch_size + (l2_lambda / batch_size) * self.weights[l]
             b_grads[l] = np.sum(dZ, axis=0, keepdims=True) / batch_size
             if l > 0:
                 dA_prev = dZ @ self.weights[l].T
@@ -91,31 +98,38 @@ class NeuralNetwork:
         return w_grads, b_grads
 
     def gradient_descent(self, grads_W, grads_b, lr):
-        for l in range(self.nlayers):
-            self.weights[l] -= lr * grads_W[l]
-            self.biases[l] -= lr * grads_b[l]
+        for i in range(self.nlayers):
+            self.weights[i] -= lr * grads_W[i]
+            self.biases[i] -= lr * grads_b[i]
 
-    def adam(self, grads_W, grads_b, lr, beta1=0.9, beta2=0.999, epsilon=1e-8):
+    def adam(self, grads_W, grads_b, lr, beta1=0.9, beta2=0.999, epsilon=1e-8): # cambiar l por i en cada metodo
         return
 
-    def dropout(self, activations, dropout_rate=0.15):
+    def dropout(self, z_list, dropout_rate=0.15, training=True):
         if dropout_rate < 0 or dropout_rate >= 1:
-            raise ValueError("Invalid dropout_rate. Must be in the range [0, 1).")
-            # implementar
-        return
-    
+            raise ValueError('Invalid dropout_rate. Must be in the range [0, 1).')
+        
+        if not training:
+            return z_list
+        
+        mask = np.random.rand(*z_list.shape) > dropout_rate
 
-    def lr_scheduling(self, lr_init, current_epoch, total_epochs, type='None', decay_rate=0.96):
+        z_l = z_l * mask
+        z_l /= (1 - dropout_rate)
+
+        return z_l
+
+    def lr_scheduling(self, lr_init, current_epoch, total_epochs, type='None', decay_rate=0.995):
         if type == 'None':
             return lr_init
         elif type == 'Linear':
             return (1 - current_epoch / total_epochs) * lr_init
         elif type == 'Exp':
-            return lr_init * (decay_rate ** current_epoch) # CAMBIAR ESTO
+            return lr_init * (decay_rate ** current_epoch)
         else:
             raise ValueError(f'Invalid lr_schedule type: ({type})')
         
-    def train(self, X_val, y_val, epochs=50, lr=0.01, batch_size=None, optimizer='gradient_descent', early_stopping=False, scheduling_type='None'): # cambiar a total_samples
+    def train(self, X_val, y_val, epochs=50, lr=0, batch_size=None, optimizer='gradient_descent', early_stopping=False, scheduling_type='None', l2_lambda=0.1): # cambiar a total_samples
         X_train = self.X
         y_train = self.Y
 
@@ -140,10 +154,10 @@ class NeuralNetwork:
                 X_batch = X_shuffled[start:end]
                 y_batch = y_shuffled[start:end]
 
-                activations, pre_acts = self.forward(X_batch)
-                batch_loss = self.loss(activations[-1], y_batch)
+                activations, pre_acts = self.forward(X_batch, training=True) # PONER DORPOUT OPCIONEAL
+                batch_loss = self.loss(activations[-1], y_batch, l2_lambda)
                 epoch_loss += batch_loss
-                grads_W, grads_b = self.backward(activations, pre_acts, y_batch)
+                grads_W, grads_b = self.backward(activations, pre_acts, y_batch, l2_lambda)
 
                 if optimizer == 'gradient_descent':
                     self.gradient_descent(grads_W, grads_b, current_lr)
@@ -157,7 +171,7 @@ class NeuralNetwork:
             self.train_losses.append(epoch_loss)
 
             val_activations, _ = self.forward(X_val)
-            val_loss = self.loss(val_activations[-1], y_val)
+            val_loss = self.loss(val_activations[-1], y_val, l2_lambda)
             self.val_losses.append(val_loss)
 
             if early_stopping:
@@ -176,7 +190,7 @@ class NeuralNetwork:
                 print(f'Epoch {epoch+1}/{epochs} - Train Loss: {epoch_loss:.4f} - Val Loss: {val_loss:.4f} - Val Acc: {acc:.4f} - LR: {current_lr:.6f}')
     
     def predict(self, X):
-        activations, _ = self.forward(X)
+        activations, _ = self.forward(X, training=False)
         return np.argmax(activations[-1], axis=1)
 
     def accuracy(self, X_train, y_train, X_valid, y_valid):
