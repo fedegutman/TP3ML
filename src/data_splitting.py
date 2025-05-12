@@ -1,68 +1,90 @@
 import numpy as np
 from src.models import NeuralNetwork
-from tqdm import tqdm
+from tqdm import tqdm # type: ignore
 
-def dev_test_split(X_dataset:np.ndarray, Y_dataset:np.ndarray, seed:int=42, dev_size:float=0.8):
+def split_dataset(X_dataset:np.ndarray, Y_dataset:np.ndarray, seed:int=42, train_size:float=0.8):
     '''
     '''
     indices = np.arange(len(X_dataset))
     np.random.shuffle(indices)
 
-    split = int(len(indices) * dev_size)
-    dev_indices = indices[:split]
+    split = int(len(indices) * train_size)
+    train_indices = indices[:split]
     test_indices = indices[split:]
 
-    X_dev, X_test = X_dataset[dev_indices], X_dataset[test_indices]
-    Y_dev, Y_test = Y_dataset[dev_indices], Y_dataset[test_indices]
+    X_train, X_test = X_dataset[train_indices], X_dataset[test_indices]
+    Y_train, Y_test = Y_dataset[train_indices], Y_dataset[test_indices]
 
-    return X_dev, X_test, Y_dev, Y_test
-    
-def train_valid_split(X_dataset:np.ndarray, Y_dataset:np.ndarray, seed:int=42, dev_size:float=0.8):
-    '''
-    '''
-    indices = np.arange(len(X_dataset))
-    np.random.shuffle(indices)
+    return X_train, X_test, Y_train, Y_test
 
-    split = int(len(indices) * dev_size)
-    train_indices = indices[:split]
-    val_indices = indices[split:]
+def cross_validation_grid_search(ModelClass, X, Y, layer_sizes, l2s, optimizers, batch_sizes, patiences, dropouts, k_folds=3):
 
-    X_train, X_valid = X_dataset[train_indices], X_dataset[val_indices]
-    Y_train, Y_valid = Y_dataset[train_indices], Y_dataset[val_indices]
+    best_acc = None
+    best_params = None
+    best_train_loss = None
+    best_val_loss = float('inf')
 
-    return X_train, X_valid, Y_train, Y_valid
+    n_samples = X.shape[0]
+    indices = np.arange(n_samples)
 
+    for layer_size in layer_sizes:
+        for l2 in l2s:
+            for batch in batch_sizes:
+                for patience in patiences:
+                    for dropout in dropouts:
+                        for opt in optimizers:
+                            val_scores = []
+                            train_losses = []
+                            val_losses = []
 
-def batch_cross_validation(X_train, y_train, layer_sizes, batch_sizes, k=5, epochs=50, lr=0.01, optimizer='gradient_descent', l2_lambda=0.01):
-    results = {}
+                            if opt == 'SGD':
+                                lr = 0.01
+                            else:
+                                lr = 0.001
 
-    for batch_size in tqdm(batch_sizes, leave=False):
-        print(f"Performing cross-validation for batch size: {batch_size}")
-        fold_size = len(X_train) // k
-        indices = np.arange(len(X_train))
-        np.random.shuffle(indices)
-        folds = [indices[i * fold_size:(i + 1) * fold_size] for i in range(k)]
+                            # Shuffle once per configuration
+                            np.random.shuffle(indices)
+                            fold_sizes = np.full(k_folds, n_samples // k_folds)
+                            fold_sizes[:n_samples % k_folds] += 1
+                            current = 0
+                            
+                            for fold in range(k_folds):
+                                start, stop = current, current + fold_sizes[fold]
+                                val_idx = indices[start:stop]
+                                train_idx = np.concatenate((indices[:start], indices[stop:]))
+                                current = stop
 
-        val_losses = []
+                                X_train, Y_train = X[train_idx], Y[train_idx]
+                                X_val, Y_val = X[val_idx], Y[val_idx]
 
-        for i in range(k):
-            # Create validation and training sets for the current fold
-            val_indices = folds[i]
-            train_indices = np.concatenate([folds[j] for j in range(k) if j != i])
+                                model = ModelClass(X_train, Y_train, layer_size)
+                                model.train(
+                                    X_val, Y_val, epochs=200, lr=lr, batch_size=batch,
+                                    optimizer=opt, early_stopping=True, l2_lambda=l2, dropout_rate=dropout, print_progress=False, scheduling_type='Linear'
+                                )
 
-            X_fold_train, y_fold_train = X_train[train_indices], y_train[train_indices]
-            X_fold_val, y_fold_val = X_train[val_indices], y_train[val_indices]
+                                y_pred = model.predict(X_val)
+                                acc = np.mean(y_pred == np.argmax(Y_val, axis=1))
+                                val_scores.append(acc)
+                                train_losses.append(model.train_losses[-1])
+                                val_losses.append(model.val_losses[-1])
 
-            # Initialize the neural network
-            model = NeuralNetwork(X_fold_train, y_fold_train, layer_sizes)
+                            avg_acc = np.mean(val_scores)
+                            avg_train_loss = np.mean(train_losses)
+                            avg_val_loss = np.mean(val_losses)
+                            print(f'layer_sizes={layer_size}, lr={lr}, l2={l2}, batch={batch}, patience={patience}, dropout={dropout}, opt={opt} -> '
+                                f'acc={avg_acc:.4f}, train_loss={avg_train_loss:.4f}, val_loss={avg_val_loss:.4f}')
 
-            # Train the model
-            model.train(X_fold_val, y_fold_val, epochs=epochs, lr=lr, batch_size=batch_size, optimizer=optimizer, l2_lambda=l2_lambda)
+                            if avg_val_loss < best_val_loss:
+                                best_acc = avg_acc
+                                best_params = (layer_size, lr, l2, batch, patience, dropout, opt)
+                                best_train_loss = avg_train_loss
+                                best_val_loss = avg_val_loss
 
-            # Record the validation loss
-            val_losses.append(model.val_losses[-1])  # Last validation loss for this fold
+    print('\nBest Params:')
+    print(f'layers={best_params[0]}, lr={best_params[1]}, l2={best_params[2]}, batch={best_params[3]}, '
+          f'patience={best_params[4]}, dropout={best_params[5]}, opt={best_params[6]}')
+    print(f'Validation Accuracy: {best_acc:.4f}, Train Loss: {best_train_loss:.4f}, Validation Loss: {best_val_loss:.4f}')
 
-        # Store the validation losses for this batch size
-        results[batch_size] = val_losses
-
-    return results
+def architecture_cross_val_grid_search(ModelClass, hidden_layers):
+    return

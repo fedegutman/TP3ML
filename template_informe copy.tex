@@ -1,0 +1,124 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage{graphicx}         % Para incluir imágenes
+\usepackage{amsmath}          % Para notación matemática
+\usepackage[margin=3cm]{geometry}  % Márgenes
+\usepackage[font=normalsize,labelfont=small]{caption}  % Estilo de captions
+\usepackage{hyperref}         % Para links clickeables
+
+% EXTENSIÓN MÁXIMA: 10 HOJAS SIN EXCEPCIÓN.
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{2cm}
+    \includegraphics[scale=0.5]{LOGO_UDESA.png}\par
+    \vspace{10pt}
+
+    {\LARGE \textbf{I302 - Aprendizaje Automático\\ y Aprendizaje Profundo}\par}
+    \vspace{1cm}
+
+    {\LARGE \textbf{Trabajo Práctico 3: \\Redes Neuronales}\par}
+    \vfill  % This makes the following content stick to the bottom of the page
+    
+    {\LARGE {Federico Gutman}\par}  % <- Modificar Nombre y Apellido
+    \vspace{1cm}
+    
+    {\Large \today\par}
+    \vspace{1cm}
+    \Large{Ingeniería en Inteligencia Artificial}
+\end{titlepage}
+
+% EJERCICIO 1
+\section{Diagnóstico de Cáncer de Mama}
+% RESUMEN
+\begin{abstract}
+Breve resumen (unas líneas) de qué se hizo, cómo se hizo, qué resultados se obtuvieron. Por ejemplo: ``En este trabajo se quizo modelar... Para llevarlo a cabo, se desarrolló ... se probó utilizando ... . El modelo performó ... y las métricas dieron ...''.
+\end{abstract}
+
+% INTRODUCCION
+\subsection{Introducción}
+\textit{Explicar el problema. Proporcionar el contexto necesario y explicar cuáles son las entradas y salidas del algoritmo. Por ejemplo: “La entrada del algoritmo es (imagen, amplitud de señal, edad del paciente, mediciones de lluvia, video en escala de grises, etc.). Luego, se utilizó un/a (red neuronal, regresión lineal, árbol de decisión, etc.) para obtener una predicción de (edad, precio de acciones, tipo de cáncer, género musical, etc.)”.}
+\textbf{incluir resultados y leer texto en italica}
+
+La clasificación automática de imágenes es una de las aplicaciones más representativas del aprendizaje profundo, especialmente en contextos donde los datos presentan alta dimensionalidad y patrones visuales complejos. En este trabajo, se buscó desarrollar un modelo de aprendizaje automático basado en redes neuronales artificiales, capaz de clasificar caracteres japoneses a partir de imágenes en escala de grises de 28 × 28 píxeles.
+
+El conjunto de datos utilizado incluye imágenes correspondientes a 49 clases distintas, lo que plantea un problema de clasificación multiclase. Cada imagen representa un carácter japonés, y el objetivo del modelo es asignar correctamente la clase correspondiente en base a las características visuales extraídas de los píxeles.
+
+Para abordar esta tarea, se implementó una red neuronal multicapa desde cero, utilizando funciones de activación ReLU en las capas ocultas y softmax en la salida, junto con la función de costo de entropía cruzada. Posteriormente, se incorporaron mejoras al proceso de entrenamiento, como descenso por gradiente mini-batch, técnicas de regularización, optimizadores avanzados y estrategias de rate scheduling, con el objetivo de mejorar la capacidad de generalización del modelo.
+
+Finalmente, se reprodujo la arquitectura en PyTorch para validar resultados y explorar nuevas configuraciones, incluyendo una versión deliberadamente sobreajustada. Los modelos fueron evaluados en términos de accuracy, función de costo y matriz de confusión, y se generaron predicciones probabilísticas para un conjunto de datos sin etiquetar.
+
+% METODOS
+\subsection{Métodos}
+\textit{Describir los algoritmos que se implementaron y utilizaron. Asegurarse de incluir la notación matemática relevante. Si el espacio lo permite, se podrá dar una breve descripción ($\approx$ 1 párrafo) de cómo funciona.}
+
+En este trabajo se implementó una red neuronal multicapa (MLP) para la clasificación de caracteres japoneses. La arquitectura de la red consta de una capa de entrada, distintas cantidades de capas ocultas y una capa de salida. La función de activación utilizada en las capas ocultas es la ReLU (Rectified Linear Unit), que se define como:
+\[
+f(x) = \begin{cases}
+    0 & \text{si } x < 0 \\
+    x & \text{si } x \geq 0
+\end{cases}
+\]
+
+La función de activación softmax se utiliza en la capa de salida para convertir las salidas de la red en probabilidades, y se define como:
+\[
+\text{softmax}(z_i) = \frac{e^{z_i}}{\sum_{j=1}^{K} e^{z_j}}
+\]
+donde \( z_i \) es la salida de la neurona \( i \) y \( K \) es el número total de clases.
+La función de costo utilizada es la entropía cruzada, que mide la discrepancia entre las distribuciones de probabilidad predicha y real. Se define como:
+\[
+J(\theta) = -\frac{1}{m} \sum_{i=1}^m \left[ y^{(i)} \log(\hat{y}^{(i)}) + (1 - y^{(i)}) \log(1 - \hat{y}^{(i)}) \right]
+\]
+
+donde \( y^{(i)} \) es la etiqueta real, \( \hat{y}^{(i)} \) es la predicción del modelo, y \( m \) es el número de muestras.
+Los distintos algoritmos de optimización utilizados incluyen el descenso por gradiente, el descenso por gradiente estocástico (SGD) y Adam.
+
+El algoritmo de backpropagation es un método de optimización utilizado en redes neuronales para ajustar los pesos de las conexiones entre neuronas. Este algoritmo se basa en el principio de la regla de la cadena, que permite calcular el gradiente de la función de costo con respecto a los pesos de la red. El proceso se lleva a cabo en dos fases: la fase hacia adelante, donde se calcula la salida de la red y se evalúa la función de costo, y la fase hacia atrás, donde se calculan los gradientes y se actualizan los pesos utilizando un optimizador.
+
+El algoritmo de backpropagation se puede resumir en los siguientes pasos matemáticos:
+\begin{itemize}
+    \item Inicializar los pesos de la red neuronal aleatoriamente.
+    \item Para cada muestra de entrenamiento:
+    \begin{itemize}
+        \item Realizar la propagación hacia adelante para calcular la salida de la red.
+        \item Calcular el error entre la salida predicha y la salida real utilizando una función de costo, como la entropía cruzada:
+        \[
+        J(\theta) = -\frac{1}{m} \sum_{i=1}^m \left[ y^{(i)} \log(\hat{y}^{(i)}) + (1 - y^{(i)}) \log(1 - \hat{y}^{(i)}) \right]
+        \]
+        donde \( y^{(i)} \) es la etiqueta real, \( \hat{y}^{(i)} \) es la predicción del modelo, y \( m \) es el número de muestras.
+        \item Realizar la propagación hacia atrás para calcular los gradientes de los pesos:
+        \[
+        \frac{\partial J}{\partial w_{ij}} = \delta_j \cdot a_i
+        \]
+        donde \( \delta_j \) es el error en la neurona \( j \) y \( a_i \) es la activación de la neurona \( i \).
+        \item Actualizar los pesos utilizando un optimizador, como el descenso por gradiente estocástico (SGD):
+        \[
+        w_{ij} := w_{ij} - \eta \frac{\partial J}{\partial w_{ij}}
+        \]
+        donde \( \eta \) es la tasa de aprendizaje.
+    \end{itemize}
+    \item Repetir el proceso durante un número determinado de épocas o hasta que se alcance una convergencia aceptable.
+\end{itemize}
+
+
+\textit{Describir el conjunto de datos: ¿Qué proporción de entrenamiento/validación/prueba se utilizó? ¿Se realizó algún preprocesamiento? ¿Qué tipo de normalización o aumento de datos se utilizó?}
+
+Primero se dividió el conjunto de datos en un 80\% para desarrollo y un 20\% para testeo. Luego se dividio el conjunto de desarrollo en un 80\% para entrenamiento y un 20\% para validación. Luego, se aplicó un preprocesamiento a las imágenes, que incluyó la normalización de los píxeles a un rango de [0, 1] y la conversión a tensores. 
+
+\textit{Detallar los hiperparámetros elegidos y cómo se seleccionaron. ¿Realizaron validación cruzada? Si es así, ¿cuántos folds utilizaron?}
+
+\textit{Incluir métricas de rendimiento utilizadas.}
+
+
+% RESULTADOS
+\subsection{Resultados}
+\textit{Mostrar y discutir los resultados más destacables del trabajo. ¿Qué modelo funcionó mejor? ¿Qué modelo funcionó peor? Discutir porqué cree que fue así.}
+
+\textit{Utilice gráficos relevantes para mostrar los puntos clave de sus resultados. Estos deben llevar leyenda, labels, etc., adecuados para que el lector entienda estos gráficos.}
+\end{document}
+
+
+
+
