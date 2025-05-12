@@ -306,10 +306,12 @@ class NeuralNetworkPytorch(nn.Module):
         self.train_losses = []
         self.val_losses = []
 
-    def forward(self, x):
+    def forward(self, x, ret_softmax=False):
         for layer in self.hidden_layers:
             x = F.relu(layer(x))
         x = self.output(x)
+        if ret_softmax:
+            x = F.softmax(x, dim=1)
         return x
     
     def train_model(self, X_train, y_train, X_val, y_val, batch_size=None, epochs=10):
